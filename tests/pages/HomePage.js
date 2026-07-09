@@ -1,4 +1,6 @@
 // tests/pages/HomePage.js
+const TIMEOUT = process.env.CI ? 60000 : 30000;
+
 class HomePage {
   constructor(page) {
     this.page = page;
@@ -20,35 +22,26 @@ class HomePage {
   }
 
   async decodeVin(vin, numToReplace = 1) {
-    // Replace 'networkidle' with 'load' to be less restrictive
     await this.page.waitForLoadState('load');
-    
-    // Explicitly wait for the VIN input to be visible and ready
-    await this.vinInput.waitFor({ state: 'visible' });
+    await this.vinInput.waitFor({ state: 'visible', timeout: TIMEOUT });
     
     const randomVin = this.randomizeVin(vin, numToReplace);
     await this.vinInput.fill(randomVin);
     await this.searchButton.click();
     return randomVin;
   }
-  async verifyRevisitBannerVisible() {
-    // Wait for load instead of networkidle
+
+  async verifyRevisitBannerVisible(bannerText = 'Your report for') {
     await this.page.waitForLoadState('load');
-    
-    const banner = this.page.locator('text=Your report for');
-    
-    // Wait for the banner to be visible within 1 minute (60000ms).
-    await banner.waitFor({ state: 'visible', timeout: 60000 });
+    const banner = this.page.locator(`text=${bannerText}`);
+    await banner.waitFor({ state: 'visible', timeout: TIMEOUT });
     return banner;
   }
 
   async clickGrabItNow(banner) {
     const grabItNowButton = this.page.locator('button:has-text("Grab it now")').first();
-    
-    // Intelligent wait: ensure it is visible AND enabled before clicking
-    await grabItNowButton.waitFor({ state: 'visible' });
-    await grabItNowButton.waitFor({ state: 'attached' });
-    
+    await grabItNowButton.waitFor({ state: 'visible', timeout: TIMEOUT });
+    await grabItNowButton.waitFor({ state: 'attached', timeout: TIMEOUT });
     await grabItNowButton.click();
   }
 }

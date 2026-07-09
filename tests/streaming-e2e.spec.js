@@ -41,8 +41,8 @@ test('TC_02: Verify Classic VIN Decode', async ({ page }) => {
   // Trigger action
   await home.decodeVin('223870L108421');
   
-  // Wait for navigation and verify specs
-  await preview.verifySpecsVisible();
+  // Wait for navigation and verify specs with extended timeout (60s)
+  await preview.verifySpecsVisible('Records found for', 60000);
 
   // End time
   const endTime = Date.now();
@@ -82,3 +82,26 @@ test('TC_04: Verify Revisit Banner', async ({ page }) => {
   // 5. Verify URL contains '/vin-check/' and both query parameters
   await expect(page).toHaveURL(/.*\/vin-check\/.*type=vhr.*content=revisitBanner.*/);
   });
+
+test('TC_05: Verify Window Sticker Revisit Banner', async ({ page }) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+
+  // 1. Perform VIN decode on window-sticker page
+  await page.goto('/window-sticker');
+  await home.decodeVin('4JGED6EB0JA121898', 3);
+  await preview.verifySpecsVisible('Window sticker found for');
+  
+  // 2. Go back
+  await page.goBack();
+  await page.waitForLoadState('load');
+  
+  // 3. Wait for banner to appear (up to 1 min as requested)
+  // verifyRevisitBannerVisible now supports passing custom text and uses 60s timeout
+  const banner = await home.verifyRevisitBannerVisible('Your window sticker for');
+  await home.clickGrabItNow(banner);
+
+  // 4. Verify URL specifically with required parameters: type=sticker & content=revisitBanner
+  await page.waitForURL(/.*\/vin-check\/.*type=sticker.*content=revisitBanner.*/);
+  await expect(page).toHaveURL(/.*\/vin-check\/.*type=sticker.*content=revisitBanner.*/);
+});

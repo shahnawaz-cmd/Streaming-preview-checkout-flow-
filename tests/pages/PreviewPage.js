@@ -1,4 +1,6 @@
 // tests/pages/PreviewPage.js
+const TIMEOUT = process.env.CI ? 60000 : 30000;
+
 class PreviewPage {
   constructor(page) {
     this.page = page;
@@ -10,13 +12,13 @@ class PreviewPage {
     // Add logic here
   }
 
-  async verifySpecsVisible() {
-    // Wait for the text 'Records found for' to appear on the page
-    await this.page.waitForSelector('text=Records found for');
+  async verifySpecsVisible(expectedText = 'Records found for', timeout = TIMEOUT) {
+    // Wait for the specific text to appear on the page
+    await this.page.waitForSelector(`text=${expectedText}`, { timeout: timeout });
   }
 
   async verifyAccessRecordButton() {
-    await this.accessRecordButton.waitFor({ state: 'visible' });
+    await this.accessRecordButton.waitFor({ state: 'visible', timeout: TIMEOUT });
     await this.accessRecordButton.isEnabled();
   }
 
