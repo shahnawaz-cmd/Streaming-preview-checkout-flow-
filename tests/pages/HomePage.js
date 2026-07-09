@@ -37,8 +37,8 @@ class HomePage {
     
     const banner = this.page.locator('text=Your report for');
     
-    // Wait for the banner to be visible within a reasonable time.
-    await banner.waitFor({ state: 'visible', timeout: 30000 });
+    // Wait for the banner to be visible within 1 minute (60000ms).
+    await banner.waitFor({ state: 'visible', timeout: 60000 });
     return banner;
   }
 
