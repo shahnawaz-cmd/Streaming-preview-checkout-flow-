@@ -22,7 +22,13 @@ class HomePage {
   }
 
   async decodeVin(vin, numToReplace = 1) {
+    // Wait for the page to be fully loaded
     await this.page.waitForLoadState('load');
+    
+    // Explicitly wait 1 second for stability after load as requested
+    await this.page.waitForTimeout(1000);
+    
+    // Explicitly wait for the VIN input to be visible and ready
     await this.vinInput.waitFor({ state: 'visible', timeout: TIMEOUT });
     
     const randomVin = this.randomizeVin(vin, numToReplace);

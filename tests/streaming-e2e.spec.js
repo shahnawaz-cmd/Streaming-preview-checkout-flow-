@@ -106,6 +106,27 @@ test('TC_05: Verify Window Sticker Revisit Banner', async ({ page }) => {
   await expect(page).toHaveURL(/.*\/vin-check\/.*type=sticker.*content=revisitBanner.*/);
 });
 
+test('TC_07: Verify Exit Intent Popup', async ({ page }) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+
+  // 1. Perform VIN decode
+  await home.navigate();
+  await home.decodeVin('4JGED6EB0JA121898', 3);
+  await preview.verifySpecsVisible();
+
+  // 2. Trigger exit intent
+  await preview.triggerExitIntent();
+
+  // 3. Verify banner, redeem, and check URL for 'offer'
+  await preview.verifyAndRedeemExitOffer();
+  
+  // Verify '% OFF' is visible (assertion performed in test file)
+  await expect(page.getByText('% OFF')).toBeVisible({ timeout: 60000 });
+  
+  await expect(page).toHaveURL(/.*offer=.*/);
+});
+
 test('TC_06: Verify Preview Page Plan Selection', async ({ page }) => {
   const home = new HomePage(page);
   const preview = new PreviewPage(page);
