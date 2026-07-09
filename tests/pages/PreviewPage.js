@@ -74,5 +74,38 @@ class PreviewPage {
     // Redeem 15% off
     await this.page.getByRole('button', { name: 'Redeem 15% off' }).click();
   }
+
+  async runCheckoutFlow() {
+    // 1. Click Access Record
+    await this.clickAccessRecordButton();
+
+    // 2. Wait for email popup and fill details
+    const emailInput = this.page.locator('input[type="email"]').first();
+    const phoneInput = this.page.locator('input[type="tel"]').first();
+    
+    await emailInput.waitFor({ state: 'visible', timeout: TIMEOUT });
+    
+    await emailInput.fill(PreviewPage.generateUniqueEmail());
+    await phoneInput.fill(PreviewPage.generateUsPhoneNumber());
+    
+    // 3. Click Proceed to checkout
+    await this.page.getByRole('button', { name: /proceed to checkout/i }).click();
+    
+    // 4. Wait for checkout page navigation
+    await this.page.waitForURL('**/checkout**', { timeout: TIMEOUT });
+  }
+
+  // Helper: Generate a unique email
+  static generateUniqueEmail() {
+    return `test_${Date.now()}@example.com`;
+  }
+
+  // Helper: Generate a valid US phone number (XXX) XXX-XXXX
+  static generateUsPhoneNumber() {
+    const areaCode = Math.floor(Math.random() * 800) + 200; // 200-999
+    const prefix = Math.floor(Math.random() * 800) + 200;   // 200-999
+    const lineNumber = Math.floor(Math.random() * 9000) + 1000; // 1000-9999
+    return `(${areaCode}) ${prefix}-${lineNumber}`;
+  }
 }
 module.exports = { PreviewPage };

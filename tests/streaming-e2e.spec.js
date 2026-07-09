@@ -106,6 +106,27 @@ test('TC_05: Verify Window Sticker Revisit Banner', async ({ page }) => {
   await expect(page).toHaveURL(/.*\/vin-check\/.*type=sticker.*content=revisitBanner.*/);
 });
 
+test('TC_06: Verify Preview Page Plan Selection', async ({ page }) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+
+  // 1. Perform VIN decode
+  await home.navigate();
+  await home.decodeVin('4JGED6EB0JA121898', 3);
+  await preview.verifySpecsVisible();
+  
+  // 2. Define plans and iterate
+  // Use partial names that match the start of the buttons
+  const plans = ['1 Report', '2 Reports', '5 Reports', 'Unlimited VIN Check']; 
+  for (const planName of plans) {
+    console.log(`Selecting plan: ${planName}`);
+    const plan = await preview.selectPlan(planName);
+    
+    // Verify it is selected
+    await expect(plan).toHaveAttribute('aria-pressed', 'true');
+  }
+});
+
 test('TC_07: Verify Exit Intent Popup', async ({ page }) => {
   const home = new HomePage(page);
   const preview = new PreviewPage(page);
@@ -127,23 +148,20 @@ test('TC_07: Verify Exit Intent Popup', async ({ page }) => {
   await expect(page).toHaveURL(/.*offer=.*/);
 });
 
-test('TC_06: Verify Preview Page Plan Selection', async ({ page }) => {
+test('TC_08: Verify Home to Checkout flow', async ({ page }) => {
   const home = new HomePage(page);
   const preview = new PreviewPage(page);
+  const checkout = new CheckoutPage(page);
 
-  // 1. Perform VIN decode
+  // 1. Perform VIN decode flow
   await home.navigate();
   await home.decodeVin('4JGED6EB0JA121898', 3);
   await preview.verifySpecsVisible();
-  
-  // 2. Define plans and iterate
-  // Use partial names that match the start of the buttons
-  const plans = ['1 Report', '2 Reports', '5 Reports', 'Unlimited VIN Check']; 
-  for (const planName of plans) {
-    console.log(`Selecting plan: ${planName}`);
-    const plan = await preview.selectPlan(planName);
-    
-    // Verify it is selected
-    await expect(plan).toHaveAttribute('aria-pressed', 'true');
-  }
+
+  // 2. Run checkout flow helper
+  await preview.runCheckoutFlow();
+
+  // 3. Verify landed on checkout
+  await expect(page).toHaveURL(/.*\/checkout.*/);
+  console.log('✅ [TC_08] Successfully landed on checkout page');
 });
