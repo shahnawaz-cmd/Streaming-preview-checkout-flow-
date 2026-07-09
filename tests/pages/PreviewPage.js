@@ -12,6 +12,20 @@ class PreviewPage {
     // Add logic here
   }
 
+  async selectPlan(planName) {
+    // Specifically target the container div acting as a button for the plan
+    const plan = this.page.locator(`div[role="button"]:has(div:has-text("${planName}"))`).first();
+    
+    // Explicit wait for interactability
+    await plan.waitFor({ state: 'visible', timeout: TIMEOUT });
+    
+    // Click the plan
+    await plan.click();
+    
+    // Verify it is selected by checking aria-pressed attribute (in the test file)
+    return plan;
+  }
+
   async verifySpecsVisible(expectedText = 'Records found for', timeout = TIMEOUT) {
     // Wait for the specific text to appear on the page
     await this.page.waitForSelector(`text=${expectedText}`, { timeout: timeout });
