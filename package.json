@@ -1,0 +1,12 @@
+{
+  "name": "streaming-flow-automation",
+  "version": "1.0.0",
+  "description": "E2E testing for streaming flow",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}
