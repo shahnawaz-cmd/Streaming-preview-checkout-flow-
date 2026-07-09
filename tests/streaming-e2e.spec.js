@@ -53,3 +53,32 @@ test('TC_02: Verify Classic VIN Decode', async ({ page }) => {
   await preview.verifyAccessRecordButton();
   await preview.clickAccessRecordButton();
 });
+
+test('TC_04: Verify Revisit Banner', async ({ page }) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+
+  // 1. Perform TC_01 flow
+  await home.navigate();
+  await home.decodeVin('4JGED6EB0JA121898', 3);
+  await preview.verifySpecsVisible();
+  
+  // 2. Go back
+  await page.goBack();
+  await page.waitForLoadState('load');
+  
+  // 3. Explicit 1s pause after page load as requested
+  await page.waitForTimeout(1000);
+  
+  console.log('Navigated back to Home, waited 1s:', page.url());
+
+  // 4. Verify Revisit banner and click "Grab it now"
+  const banner = await home.verifyRevisitBannerVisible();
+  await home.clickGrabItNow(banner);
+
+  // Wait for navigation specifically with both parameters
+  await page.waitForURL(/.*\/vin-check\/.*type=vhr.*content=revisitBanner.*/);
+
+  // 5. Verify URL contains '/vin-check/' and both query parameters
+  await expect(page).toHaveURL(/.*\/vin-check\/.*type=vhr.*content=revisitBanner.*/);
+  });
