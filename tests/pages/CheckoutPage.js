@@ -18,6 +18,14 @@ class CheckoutPage {
       zip: '', 
       country: 'Pakistan',
       countryCode: 'PK'
+    },
+    generic_decline: {
+      number: '4000000000000002',
+      expiry: '12/26',
+      cvc: '123',
+      zip: '10001',
+      country: 'United States',
+      countryCode: 'US'
     }
   };
 

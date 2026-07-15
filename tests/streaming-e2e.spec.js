@@ -3,6 +3,7 @@ const { test, expect } = require('@playwright/test');
 const { HomePage } = require('./pages/HomePage');
 const { PreviewPage } = require('./pages/PreviewPage');
 const { CheckoutPage } = require('./pages/CheckoutPage');
+const { ApiResponseCapture } = require('./helpers/responseCapture');
 
 const TIMEOUT = 60000; // Define timeout for test spec
 
@@ -173,18 +174,7 @@ test('TC_09_Full_Checkout_Flow_Stripe_Visa_US_Validation', async ({ page }, test
   const preview = new PreviewPage(page);
   const checkout = new CheckoutPage(page);
 
-  // Intercept API responses
-  const stripeResponses = [];
-  const paymentUpdateResponses = [];
-  
-  page.on('response', async (response) => {
-    if (response.url().includes('/v1/payment_intents/')) {
-      try {
-        const body = await response.json();
-        stripeResponses.push(body);
-      } catch (e) {}
-    }
-  });
+  const apiCapture = new ApiResponseCapture(page, TIMEOUT);
 
   // 1. VIN Decode Flow
   await home.navigate();
@@ -196,49 +186,23 @@ test('TC_09_Full_Checkout_Flow_Stripe_Visa_US_Validation', async ({ page }, test
   await expect(page).toHaveURL(/.*\/checkout.*/);
 
   // 3. Complete Checkout Flow with Stripe Visa US
-  const paymentUpdateResponsePromise = page.waitForResponse(
-    (response) => response.url().includes('/api-cwa/payment-update') && response.ok(),
-    { timeout: TIMEOUT }
-  );
-
   await Promise.all([
     checkout.completeCheckoutProcess('visa_us'),
     page.waitForURL(/.*\/success.*/, { timeout: TIMEOUT }),
-    paymentUpdateResponsePromise,
+    apiCapture.waitForStripePaymentIntent(),
+    apiCapture.waitForPaymentUpdate(),
   ]);
 
-  const paymentUpdateResponse = await paymentUpdateResponsePromise;
-  const paymentUpdateRecord = {
-    url: paymentUpdateResponse.url(),
-    status: paymentUpdateResponse.status(),
-    ok: paymentUpdateResponse.ok(),
-  };
-
-  try {
-    const text = await paymentUpdateResponse.text();
-    paymentUpdateRecord.body = text;
-
-    try {
-      paymentUpdateRecord.json = JSON.parse(text);
-    } catch (parseError) {
-      paymentUpdateRecord.parseError = parseError.message;
-    }
-  } catch (e) {
-    paymentUpdateRecord.error = e.message;
-  }
-
-  paymentUpdateResponses.push(paymentUpdateRecord);
-
   // Attach responses to Playwright report
-  if (stripeResponses.length > 0) {
+  if (apiCapture.stripeResponses.length > 0) {
     await testInfo.attach('stripe_response', {
-      body: JSON.stringify(stripeResponses, null, 2),
+      body: JSON.stringify(apiCapture.stripeResponses, null, 2),
       contentType: 'application/json',
     });
   }
-  if (paymentUpdateResponses.length > 0) {
+  if (apiCapture.paymentUpdateResponses.length > 0) {
     await testInfo.attach('payment_update_response', {
-      body: JSON.stringify(paymentUpdateResponses, null, 2),
+      body: JSON.stringify(apiCapture.paymentUpdateResponses, null, 2),
       contentType: 'application/json',
     });
   } else {
@@ -263,17 +227,7 @@ test('TC_10_Full_Window_Sticker_Checkout_Flow_Stripe_Visa_US_Validation', async 
   const preview = new PreviewPage(page);
   const checkout = new CheckoutPage(page);
 
-  const stripeResponses = [];
-  const paymentUpdateResponses = [];
-
-  page.on('response', async (response) => {
-    if (response.url().includes('/v1/payment_intents/')) {
-      try {
-        const body = await response.json();
-        stripeResponses.push(body);
-      } catch (e) {}
-    }
-  });
+  const apiCapture = new ApiResponseCapture(page, TIMEOUT);
 
   const vin = process.env.TC_10_VIN || '4JGED6EB0JA121264';
 
@@ -284,47 +238,22 @@ test('TC_10_Full_Window_Sticker_Checkout_Flow_Stripe_Visa_US_Validation', async 
   await preview.runCheckoutFlow();
   await expect(page).toHaveURL(/.*\/checkout.*/);
 
-  const paymentUpdateResponsePromise = page.waitForResponse(
-    (response) => response.url().includes('/api-cwa/payment-update') && response.ok(),
-    { timeout: TIMEOUT }
-  );
-
   await Promise.all([
     checkout.completeCheckoutProcess('visa_us'),
     page.waitForURL(/.*\/success.*/, { timeout: TIMEOUT }),
-    paymentUpdateResponsePromise,
+    apiCapture.waitForStripePaymentIntent(),
+    apiCapture.waitForPaymentUpdate(),
   ]);
 
-  const paymentUpdateResponse = await paymentUpdateResponsePromise;
-  const paymentUpdateRecord = {
-    url: paymentUpdateResponse.url(),
-    status: paymentUpdateResponse.status(),
-    ok: paymentUpdateResponse.ok(),
-  };
-
-  try {
-    const text = await paymentUpdateResponse.text();
-    paymentUpdateRecord.body = text;
-    try {
-      paymentUpdateRecord.json = JSON.parse(text);
-    } catch (parseError) {
-      paymentUpdateRecord.parseError = parseError.message;
-    }
-  } catch (e) {
-    paymentUpdateRecord.error = e.message;
-  }
-
-  paymentUpdateResponses.push(paymentUpdateRecord);
-
-  if (stripeResponses.length > 0) {
+  if (apiCapture.stripeResponses.length > 0) {
     await testInfo.attach('stripe_response', {
-      body: JSON.stringify(stripeResponses, null, 2),
+      body: JSON.stringify(apiCapture.stripeResponses, null, 2),
       contentType: 'application/json',
     });
   }
-  if (paymentUpdateResponses.length > 0) {
+  if (apiCapture.paymentUpdateResponses.length > 0) {
     await testInfo.attach('payment_update_response', {
-      body: JSON.stringify(paymentUpdateResponses, null, 2),
+      body: JSON.stringify(apiCapture.paymentUpdateResponses, null, 2),
       contentType: 'application/json',
     });
   } else {

@@ -95,11 +95,11 @@ class PreviewPage {
     await emailInput.fill(PreviewPage.generateUniqueEmail());
     await phoneInput.fill(PreviewPage.generateUsPhoneNumber());
     
-    // 3. Click Proceed to checkout
-    await this.page.getByRole('button', { name: /proceed to checkout/i }).click();
-    
-    // 4. Wait for checkout page navigation
-    await this.page.waitForURL('**/checkout**', { timeout: TIMEOUT });
+    // 3. Click Proceed to checkout and wait for the navigation together
+    await Promise.all([
+      this.page.waitForURL(/.*\/checkout.*/, { timeout: TIMEOUT }),
+      this.page.getByRole('button', { name: /proceed to checkout/i }).click(),
+    ]);
   }
 
   // Helper: Generate a unique email
