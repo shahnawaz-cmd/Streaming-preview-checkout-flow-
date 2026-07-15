@@ -4,7 +4,9 @@ const { HomePage } = require('./pages/HomePage');
 const { PreviewPage } = require('./pages/PreviewPage');
 const { CheckoutPage } = require('./pages/CheckoutPage');
 
-test('TC_01: Verify 17 Character VIN Decode', async ({ page }) => {
+const TIMEOUT = 60000; // Define timeout for test spec
+
+test('TC_01_VIN_Decode_17_Character_Validation', async ({ page }) => {
   const home = new HomePage(page);
   const preview = new PreviewPage(page);
 
@@ -27,9 +29,10 @@ test('TC_01: Verify 17 Character VIN Decode', async ({ page }) => {
   // Verify Access Record button
   await preview.verifyAccessRecordButton();
   await preview.clickAccessRecordButton();
+  await preview.closeAccessRecordPopup();
 });
 
-test('TC_02: Verify Classic VIN Decode', async ({ page }) => {
+test('TC_02_VIN_Decode_Classic_Validation', async ({ page }) => {
   const home = new HomePage(page);
   const preview = new PreviewPage(page);
 
@@ -52,9 +55,10 @@ test('TC_02: Verify Classic VIN Decode', async ({ page }) => {
   // Verify Access Record button
   await preview.verifyAccessRecordButton();
   await preview.clickAccessRecordButton();
+  await preview.closeAccessRecordPopup();
 });
 
-test('TC_04: Verify Revisit Banner', async ({ page }) => {
+test('TC_04_Revisit_Banner_Interaction_Validation', async ({ page }) => {
   const home = new HomePage(page);
   const preview = new PreviewPage(page);
 
@@ -67,12 +71,10 @@ test('TC_04: Verify Revisit Banner', async ({ page }) => {
   await page.goBack();
   await page.waitForLoadState('load');
   
-  // 3. Explicit 1s pause after page load as requested
-  await page.waitForTimeout(1000);
-  
-  console.log('Navigated back to Home, waited 1s:', page.url());
+  console.log('Navigated back to Home:', page.url());
 
   // 4. Verify Revisit banner and click "Grab it now"
+  // Revisit banner is verified by its visibility, not time.
   const banner = await home.verifyRevisitBannerVisible();
   await home.clickGrabItNow(banner);
 
@@ -83,7 +85,7 @@ test('TC_04: Verify Revisit Banner', async ({ page }) => {
   await expect(page).toHaveURL(/.*\/vin-check\/.*type=vhr.*content=revisitBanner.*/);
   });
 
-test('TC_05: Verify Window Sticker Revisit Banner', async ({ page }) => {
+test('TC_05_Window_Sticker_Revisit_Banner_Validation', async ({ page }) => {
   const home = new HomePage(page);
   const preview = new PreviewPage(page);
 
@@ -106,7 +108,7 @@ test('TC_05: Verify Window Sticker Revisit Banner', async ({ page }) => {
   await expect(page).toHaveURL(/.*\/vin-check\/.*type=sticker.*content=revisitBanner.*/);
 });
 
-test('TC_06: Verify Preview Page Plan Selection', async ({ page }) => {
+test('TC_06_Preview_Page_Plan_Selection_Validation', async ({ page }) => {
   const home = new HomePage(page);
   const preview = new PreviewPage(page);
 
@@ -127,7 +129,7 @@ test('TC_06: Verify Preview Page Plan Selection', async ({ page }) => {
   }
 });
 
-test('TC_07: Verify Exit Intent Popup', async ({ page }) => {
+test('TC_07_Exit_Intent_Popup_Trigger_Validation', async ({ page }) => {
   const home = new HomePage(page);
   const preview = new PreviewPage(page);
 
@@ -148,7 +150,7 @@ test('TC_07: Verify Exit Intent Popup', async ({ page }) => {
   await expect(page).toHaveURL(/.*offer=.*/);
 });
 
-test('TC_08: Verify Home to Checkout flow', async ({ page }) => {
+test('TC_08_Home_To_Checkout_Flow_Integration_Validation', async ({ page }) => {
   const home = new HomePage(page);
   const preview = new PreviewPage(page);
   const checkout = new CheckoutPage(page);
@@ -164,4 +166,89 @@ test('TC_08: Verify Home to Checkout flow', async ({ page }) => {
   // 3. Verify landed on checkout
   await expect(page).toHaveURL(/.*\/checkout.*/);
   console.log('✅ [TC_08] Successfully landed on checkout page');
+});
+
+test('TC_09_Full_Checkout_Flow_Stripe_Visa_US_Validation', async ({ page }, testInfo) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+  const checkout = new CheckoutPage(page);
+
+  // Intercept API responses
+  const stripeResponses = [];
+  const paymentUpdateResponses = [];
+  
+  page.on('response', async (response) => {
+    if (response.url().includes('/v1/payment_intents/')) {
+      try {
+        const body = await response.json();
+        stripeResponses.push(body);
+      } catch (e) {}
+    }
+  });
+
+  // 1. VIN Decode Flow
+  await home.navigate();
+  await home.decodeVin('4JGED6EB0JA121898', 3);
+  await preview.verifySpecsVisible();
+
+  // 2. Access Record & Checkout Flow
+  await preview.runCheckoutFlow();
+  await expect(page).toHaveURL(/.*\/checkout.*/);
+
+  // 3. Complete Checkout Flow with Stripe Visa US
+  const paymentUpdateResponsePromise = page.waitForResponse(
+    (response) => response.url().includes('/api-cwa/payment-update') && response.ok(),
+    { timeout: TIMEOUT }
+  );
+
+  await Promise.all([
+    checkout.completeCheckoutProcess('visa_us'),
+    page.waitForURL(/.*\/success.*/, { timeout: TIMEOUT }),
+    paymentUpdateResponsePromise,
+  ]);
+
+  const paymentUpdateResponse = await paymentUpdateResponsePromise;
+  const paymentUpdateRecord = {
+    url: paymentUpdateResponse.url(),
+    status: paymentUpdateResponse.status(),
+    ok: paymentUpdateResponse.ok(),
+  };
+
+  try {
+    const text = await paymentUpdateResponse.text();
+    paymentUpdateRecord.body = text;
+
+    try {
+      paymentUpdateRecord.json = JSON.parse(text);
+    } catch (parseError) {
+      paymentUpdateRecord.parseError = parseError.message;
+    }
+  } catch (e) {
+    paymentUpdateRecord.error = e.message;
+  }
+
+  paymentUpdateResponses.push(paymentUpdateRecord);
+
+  // Attach responses to Playwright report
+  if (stripeResponses.length > 0) {
+    await testInfo.attach('stripe_response', {
+      body: JSON.stringify(stripeResponses, null, 2),
+      contentType: 'application/json',
+    });
+  }
+  if (paymentUpdateResponses.length > 0) {
+    await testInfo.attach('payment_update_response', {
+      body: JSON.stringify(paymentUpdateResponses, null, 2),
+      contentType: 'application/json',
+    });
+  } else {
+    await testInfo.attach('payment_update_response', {
+      body: JSON.stringify({ message: 'No payment-update response captured' }, null, 2),
+      contentType: 'application/json',
+    });
+  }
+
+  // 4. Final validation
+  console.log('✅ [TC_09] Successfully completed full checkout flow, verified success page, and attached API responses to report');
+  await page.close();
 });

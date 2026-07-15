@@ -38,8 +38,15 @@ class PreviewPage {
 
   async clickAccessRecordButton() {
     await this.accessRecordButton.click();
-    await this.page.waitForTimeout(1000);
   }
+
+  async closeAccessRecordPopup() {
+    const closeButton = this.page.getByRole('button', { name: /^Close$/ }).first();
+    await closeButton.waitFor({ state: 'visible', timeout: TIMEOUT });
+    await closeButton.click();
+    await closeButton.waitFor({ state: 'hidden', timeout: TIMEOUT });
+  }
+
   async triggerExitIntent() {
     await this.page.mouse.move(640, 400, { steps: 10 });
     await this.page.waitForTimeout(1000);
