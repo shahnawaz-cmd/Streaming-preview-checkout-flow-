@@ -4,6 +4,7 @@ class ApiResponseCapture {
     this.timeout = timeout;
     this.stripeResponses = [];
     this.paymentUpdateResponses = [];
+    this.threeDSResponses = [];
   }
 
   async captureResponse(response) {
@@ -39,9 +40,30 @@ class ApiResponseCapture {
     return record;
   }
 
-  async waitForPaymentUpdate() {
+  async waitForThreeDSAuthenticate() {
     const response = await this.page.waitForResponse(
-      (response) => response.url().includes('/api-cwa/payment-update') && response.ok(),
+      (response) => response.url().includes('https://api.stripe.com/v1/3ds2/authenticate'),
+      { timeout: this.timeout }
+    );
+    const record = await this.captureResponse(response);
+    this.threeDSResponses.push(record);
+    return record;
+  }
+
+  async waitForStripeResponseByUrlPart(urlPart) {
+    const response = await this.page.waitForResponse(
+      (response) => response.url().includes(urlPart),
+      { timeout: this.timeout }
+    );
+    const record = await this.captureResponse(response);
+    this.stripeResponses.push(record);
+    return record;
+  }
+
+  async waitForPaymentUpdate({ okOnly = true } = {}) {
+    const response = await this.page.waitForResponse(
+      (response) =>
+        response.url().includes('/api-cwa/payment-update') && (!okOnly || response.ok()),
       { timeout: this.timeout }
     );
     const record = await this.captureResponse(response);

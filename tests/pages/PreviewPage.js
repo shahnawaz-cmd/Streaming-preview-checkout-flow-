@@ -97,7 +97,7 @@ class PreviewPage {
     
     // 3. Click Proceed to checkout and wait for the navigation together
     await Promise.all([
-      this.page.waitForURL(/.*\/checkout.*/, { timeout: TIMEOUT }),
+      this.page.waitForURL(/.*\/checkout(?:-\d+)?.*/, { timeout: TIMEOUT }),
       this.page.getByRole('button', { name: /proceed to checkout/i }).click(),
     ]);
   }

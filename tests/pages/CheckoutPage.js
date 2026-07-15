@@ -26,6 +26,14 @@ class CheckoutPage {
       zip: '10001',
       country: 'United States',
       countryCode: 'US'
+    },
+    stripe_3ds: {
+      number: '4000000000003220',
+      expiry: '12/26',
+      cvc: '123',
+      zip: '10001',
+      country: 'United States',
+      countryCode: 'US'
     }
   };
 
@@ -69,6 +77,42 @@ class CheckoutPage {
 
     // Click the dynamic submit button ("Pay NGN", "Pay USD", etc.) and skip the provider tabs.
     await this.page.getByRole('button', { name: /^Pay\b/i }).click();
+  }
+
+  async waitForPaymentFailureAndClose() {
+    const failureMessage = this.page.getByText(/declin|error|failed/i).first();
+    await failureMessage.waitFor({ state: 'visible', timeout: TIMEOUT });
+
+    const closeButton = this.page.getByRole('button', { name: /^Close$/ }).first();
+    if (await closeButton.isVisible().catch(() => false)) {
+      await closeButton.click();
+    }
+  }
+
+  async complete3DSChallenge() {
+    const deadline = Date.now() + 60000;
+
+    while (Date.now() < deadline) {
+      for (const frame of this.page.frames()) {
+        try {
+          const authorizeButton = await frame.$('#test-source-authorize-3ds');
+          if (authorizeButton) {
+            await authorizeButton.click();
+            return;
+          }
+
+          const completeButton = await frame.$('button:has-text("Complete")');
+          if (completeButton) {
+            await completeButton.click();
+            return;
+          }
+        } catch (error) {
+          // Keep polling until the challenge frame is ready or the page navigates.
+        }
+      }
+
+      await this.page.waitForTimeout(1000);
+    }
   }
 
   async payWithPayPal() {

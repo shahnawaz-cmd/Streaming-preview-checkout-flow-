@@ -271,3 +271,82 @@ test('TC_10_Full_Window_Sticker_Checkout_Flow_Stripe_Visa_US_Validation', async 
   console.log('✅ [TC_10] Successfully completed window sticker checkout flow, verified success page, and attached API responses to report');
   await page.close();
 });
+
+test('TC_11_Full_Checkout_Flow_Stripe_Generic_Decline_Validation', async ({ page }, testInfo) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+  const checkout = new CheckoutPage(page);
+
+  const apiCapture = new ApiResponseCapture(page, TIMEOUT);
+
+  await home.navigate();
+  await home.decodeVin('4JGED6EB0JA121898', 3);
+  await preview.verifySpecsVisible();
+
+  await preview.runCheckoutFlow();
+  await expect(page).toHaveURL(/.*\/checkout.*/);
+
+  await Promise.all([
+    checkout.completeCheckoutProcess('generic_decline'),
+    apiCapture.waitForStripePaymentIntent(),
+    checkout.waitForPaymentFailureAndClose(),
+  ]);
+
+  if (apiCapture.stripeResponses.length > 0) {
+    await testInfo.attach('stripe_response', {
+      body: JSON.stringify(apiCapture.stripeResponses, null, 2),
+      contentType: 'application/json',
+    });
+  }
+
+  await expect(page).not.toHaveURL(/.*\/success.*/);
+
+  console.log('✅ [TC_11] Decline card returned API response, showed front-end error, and did not complete payment');
+  await page.close();
+});
+
+test('TC_12_Full_Checkout_Flow_Stripe_3DS_Validation', async ({ page }, testInfo) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+  const checkout = new CheckoutPage(page);
+  const apiCapture = new ApiResponseCapture(page, TIMEOUT);
+
+  await home.navigate();
+  await home.decodeVin('4JGED6EB0JA121898', 3);
+  await preview.verifySpecsVisible();
+
+  await preview.runCheckoutFlow();
+  await expect(page).toHaveURL(/.*\/checkout.*/);
+
+  await Promise.all([
+    checkout.completeCheckoutProcess('stripe_3ds'),
+    apiCapture.waitForStripePaymentIntent(),
+    apiCapture.waitForThreeDSAuthenticate(),
+  ]);
+
+  await Promise.all([
+    checkout.complete3DSChallenge(),
+    apiCapture.waitForStripeResponseByUrlPart('/v1/payment_intents/'),
+    apiCapture.waitForPaymentUpdate({ okOnly: false }),
+    page.waitForURL(/.*\/(success|success-page).*/, { timeout: TIMEOUT }),
+  ]);
+
+  if (apiCapture.stripeResponses.length > 0) {
+    await testInfo.attach('stripe_response', {
+      body: JSON.stringify(apiCapture.stripeResponses, null, 2),
+      contentType: 'application/json',
+    });
+  }
+
+  if (apiCapture.threeDSResponses.length > 0) {
+    await testInfo.attach('three_ds_response', {
+      body: JSON.stringify(apiCapture.threeDSResponses, null, 2),
+      contentType: 'application/json',
+    });
+  }
+
+  await expect(page).toHaveURL(/.*\/(success|success-page).*/);
+
+  console.log('✅ [TC_12] 3DS card completed challenge, captured API responses, and reached success');
+  await page.close();
+});
