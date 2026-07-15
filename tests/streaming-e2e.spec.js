@@ -350,3 +350,22 @@ test('TC_12_Full_Checkout_Flow_Stripe_3DS_Validation', async ({ page }, testInfo
   console.log('✅ [TC_12] 3DS card completed challenge, captured API responses, and reached success');
   await page.close();
 });
+
+test('TC_13_Classic_VIN_YMM_Edit_Validation', async ({ page }) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+
+  try {
+    await home.navigate();
+    await home.decodeVin('242370B111346');
+    await expect.poll(
+      async () => page.locator('body').innerText(),
+      { timeout: TIMEOUT }
+    ).toContain('Reveal records for this vehicle');
+
+    await preview.classicEdtibleFeatureYMM();
+    console.log('✅ [TC_13] Classic VIN YMM edit submitted');
+  } finally {
+    await page.close();
+  }
+});

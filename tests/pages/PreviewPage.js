@@ -1,4 +1,5 @@
 // tests/pages/PreviewPage.js
+const { expect } = require('@playwright/test');
 const TIMEOUT = process.env.CI ? 90000 : 30000;
 
 class PreviewPage {
@@ -80,6 +81,29 @@ class PreviewPage {
   async verifyAndRedeemExitOffer() {
     // Redeem 15% off
     await this.page.getByRole('button', { name: 'Redeem 15% off' }).click();
+  }
+
+  async classicEdtibleFeatureYMM() {
+    await this.page.getByRole('button', { name: 'Click here to update' }).click();
+    await this.page.getByRole('button', { name: 'Year, Make & Model The' }).click();
+
+    // Explicit 30s delay to allow popup stabilization as requested
+    await this.page.waitForTimeout(30000);
+
+    await this.page.getByRole('textbox', { name: 'Select year' }).click();
+    await this.page.getByRole('button', { name: '1923' }).click();
+
+    await this.page.getByRole('textbox', { name: 'Select make' }).click();
+    await this.page.getByRole('button', { name: 'Ambassador' }).click();
+
+    await this.page.getByRole('textbox', { name: 'Select model' }).click();
+    await this.page.getByRole('button', { name: 'R', exact: true }).click();
+
+    await this.page.getByRole('textbox', { name: 'Select trim' }).click();
+    await this.page.getByRole('button', { name: 'Touring' }).click();
+
+    await this.page.getByRole('button', { name: 'Continue' }).click();
+    await this.page.getByRole('button', { name: 'Confirm & Get Records' }).click();
   }
 
   async runCheckoutFlow() {
