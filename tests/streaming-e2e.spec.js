@@ -249,6 +249,11 @@ test('TC_09_Full_Checkout_Flow_Stripe_Visa_US_Validation', async ({ page }, test
   }
 
   // 4. Final validation
+  const memberAreaUrlPattern = /.*\/dashboard\?vin=[^&]+&generate=true&paid=true#vehicle-history-report/;
+
+  await page.waitForURL(memberAreaUrlPattern, { timeout: TIMEOUT });
+  await expect(page).toHaveURL(memberAreaUrlPattern);
+
   console.log('✅ [TC_09] Successfully completed full checkout flow, verified success page, and attached API responses to report');
   await page.close();
 });
