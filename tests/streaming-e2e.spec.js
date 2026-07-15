@@ -257,3 +257,88 @@ test('TC_09_Full_Checkout_Flow_Stripe_Visa_US_Validation', async ({ page }, test
   console.log('✅ [TC_09] Successfully completed full checkout flow, verified success page, and attached API responses to report');
   await page.close();
 });
+
+test('TC_10_Full_Window_Sticker_Checkout_Flow_Stripe_Visa_US_Validation', async ({ page }, testInfo) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+  const checkout = new CheckoutPage(page);
+
+  const stripeResponses = [];
+  const paymentUpdateResponses = [];
+
+  page.on('response', async (response) => {
+    if (response.url().includes('/v1/payment_intents/')) {
+      try {
+        const body = await response.json();
+        stripeResponses.push(body);
+      } catch (e) {}
+    }
+  });
+
+  const vin = process.env.TC_10_VIN || '4JGED6EB0JA121264';
+
+  await page.goto('/window-sticker');
+  await home.decodeVin(vin, 3);
+  await preview.verifySpecsVisible('Window sticker found for');
+
+  await preview.runCheckoutFlow();
+  await expect(page).toHaveURL(/.*\/checkout.*/);
+
+  const paymentUpdateResponsePromise = page.waitForResponse(
+    (response) => response.url().includes('/api-cwa/payment-update') && response.ok(),
+    { timeout: TIMEOUT }
+  );
+
+  await Promise.all([
+    checkout.completeCheckoutProcess('visa_us'),
+    page.waitForURL(/.*\/success.*/, { timeout: TIMEOUT }),
+    paymentUpdateResponsePromise,
+  ]);
+
+  const paymentUpdateResponse = await paymentUpdateResponsePromise;
+  const paymentUpdateRecord = {
+    url: paymentUpdateResponse.url(),
+    status: paymentUpdateResponse.status(),
+    ok: paymentUpdateResponse.ok(),
+  };
+
+  try {
+    const text = await paymentUpdateResponse.text();
+    paymentUpdateRecord.body = text;
+    try {
+      paymentUpdateRecord.json = JSON.parse(text);
+    } catch (parseError) {
+      paymentUpdateRecord.parseError = parseError.message;
+    }
+  } catch (e) {
+    paymentUpdateRecord.error = e.message;
+  }
+
+  paymentUpdateResponses.push(paymentUpdateRecord);
+
+  if (stripeResponses.length > 0) {
+    await testInfo.attach('stripe_response', {
+      body: JSON.stringify(stripeResponses, null, 2),
+      contentType: 'application/json',
+    });
+  }
+  if (paymentUpdateResponses.length > 0) {
+    await testInfo.attach('payment_update_response', {
+      body: JSON.stringify(paymentUpdateResponses, null, 2),
+      contentType: 'application/json',
+    });
+  } else {
+    await testInfo.attach('payment_update_response', {
+      body: JSON.stringify({ message: 'No payment-update response captured' }, null, 2),
+      contentType: 'application/json',
+    });
+  }
+
+  const windowStickerUrlPattern = /.*\/dashboard\?vin=[^&]+&generate=true&paid=true#window-sticker/;
+
+  await page.waitForURL(windowStickerUrlPattern, { timeout: TIMEOUT });
+  await expect(page).toHaveURL(windowStickerUrlPattern);
+
+  console.log('✅ [TC_10] Successfully completed window sticker checkout flow, verified success page, and attached API responses to report');
+  await page.close();
+});
