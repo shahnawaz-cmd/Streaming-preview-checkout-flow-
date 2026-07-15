@@ -369,3 +369,41 @@ test('TC_13_Classic_VIN_YMM_Edit_Validation', async ({ page }) => {
     await page.close();
   }
 });
+
+test('TC_14_Classic_Manual_Input_Validation', async ({ page }) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+
+  try {
+    await home.navigate();
+    await home.decodeVin('242370B111346');
+    await expect.poll(
+      async () => page.locator('body').innerText(),
+      { timeout: TIMEOUT }
+    ).toContain('Reveal records for this vehicle');
+
+    await preview.ClassicEditibleSpecsManualInput();
+    console.log('✅ [TC_14] Classic VIN Manual Input submitted');
+  } finally {
+    await page.close();
+  }
+});
+
+test('TC_15_Classic_Editible_Specs_Update', async ({ page }) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+
+  try {
+    await home.navigate();
+    await home.decodeVin('242370B111346');
+    await expect.poll(
+      async () => page.locator('body').innerText(),
+      { timeout: TIMEOUT }
+    ).toContain('Reveal records for this vehicle');
+
+    await preview.classicEditibleSpecsUpdateSpec();
+    console.log('✅ [TC_15] Classic Editible Specs Update submitted');
+  } finally {
+    await page.close();
+  }
+});

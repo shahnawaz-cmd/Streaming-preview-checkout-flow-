@@ -106,6 +106,53 @@ class PreviewPage {
     await this.page.getByRole('button', { name: 'Confirm & Get Records' }).click();
   }
 
+  async ClassicEditibleSpecsManualInput(timeout = TIMEOUT) {
+    await this.page.getByRole('button', { name: 'Click here to update' }).click();
+    await this.page.getByRole('button', { name: 'Year, Make & Model The' }).click();
+    await this.page.getByRole('button', { name: 'Click here', exact: true }).click();
+    
+    await this.page.getByRole('textbox', { name: 'Year' }).click();
+    await this.page.getByRole('textbox', { name: 'Year' }).fill('1950', { timeout });
+    await this.page.getByRole('textbox', { name: 'Make' }).click();
+    await this.page.getByRole('textbox', { name: 'Make' }).fill('Ford', { timeout });
+    await this.page.getByRole('textbox', { name: 'Model' }).click();
+    await this.page.getByRole('textbox', { name: 'Model' }).fill('F-150', { timeout });
+    await this.page.getByRole('textbox', { name: 'Engine' }).click();
+    await this.page.getByRole('textbox', { name: 'Engine' }).fill('V9', { timeout });
+    await this.page.getByRole('textbox', { name: 'Transmission' }).click();
+    await this.page.getByRole('textbox', { name: 'Transmission' }).fill('Auto', { timeout });
+    await this.page.getByRole('textbox', { name: 'Number of Doors' }).click();
+    await this.page.getByRole('textbox', { name: 'Number of Doors' }).fill('4', { timeout });
+    await this.page.getByRole('textbox', { name: 'Drive Type' }).click();
+    await this.page.getByRole('textbox', { name: 'Drive Type' }).fill('AWD', { timeout });
+    await this.page.getByRole('button', { name: 'Continue' }).click();
+  }
+
+  async classicEditibleSpecsUpdateSpec(timeout = TIMEOUT) {
+    await this.page.getByRole('button', { name: 'Click here to update' }).click();
+    await this.page.getByRole('button', { name: 'Specifications Engine,' }).click();
+    
+    await this.page.getByRole('textbox', { name: 'Axle Type' }).click();
+    await this.page.getByRole('textbox', { name: 'Axle Type' }).fill('Semifloating asdfsss', { timeout });
+    await this.page.getByRole('textbox', { name: 'Body Maker' }).click();
+    await this.page.getByRole('textbox', { name: 'Body Maker' }).fill('Fisher asdsss', { timeout });
+    await this.page.getByRole('textbox', { name: 'Cylinders' }).click();
+    await this.page.getByRole('textbox', { name: 'Cylinders' }).fill('8 3333', { timeout });
+    await this.page.getByRole('textbox', { name: 'Displacement' }).click();
+    await this.page.getByRole('textbox', { name: 'Displacement' }).fill('330 cu. in. 22222', { timeout });
+    await this.page.getByRole('textbox', { name: 'Front Tread' }).click();
+    await this.page.getByRole('textbox', { name: 'Front Tread' }).fill('61.8 inches asdasd', { timeout });
+    await this.page.getByRole('textbox', { name: 'Fuel' }).click();
+    await this.page.getByRole('textbox', { name: 'Fuel' }).fill('25 Gallons sdadad', { timeout });
+    await this.page.getByRole('textbox', { name: 'Height' }).click();
+    await this.page.getByRole('textbox', { name: 'Height' }).fill('55.5 inches adasd', { timeout });
+    await this.page.getByRole('textbox', { name: 'Length' }).click();
+    await this.page.getByRole('textbox', { name: 'Length' }).fill('217 inches adasd', { timeout });
+    
+    await this.page.getByRole('button', { name: 'Continue' }).click();
+    await this.page.getByRole('button', { name: 'Confirm & Get Records' }).click();
+  }
+
   async runCheckoutFlow() {
     // 1. Click Access Record
     await this.clickAccessRecordButton();
