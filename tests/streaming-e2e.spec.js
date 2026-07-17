@@ -1,7 +1,7 @@
 // tests/streaming-e2e.spec.js
 const { test, expect } = require('@playwright/test');
 const { HomePage, EUVinDecoder } = require('./pages/HomePage');
-const { PreviewPage, PreviewToCheckoutPriceValidator } = require('./pages/PreviewPage');
+const { PreviewPage, PreviewToCheckoutPriceValidator, EmailCache } = require('./pages/PreviewPage');
 const { EUVinModifier } = require('./pages/EUVinModifier');
 const { CheckoutPage } = require('./pages/CheckoutPage');
 const { ApiResponseCapture } = require('./helpers/responseCapture');
@@ -470,5 +470,22 @@ test('TC_18_Price_Consistency_Validation', async ({ page }) => {
   await validator.validateOrderSummary(selectedPlan);
 
   console.log('✅ [TC_18] Price consistency validation completed');
+  await page.close();
+});
+
+test('TC_19_Email_Cache_Flow', async ({ page }) => {
+  // Increased timeout to 120s to prevent flakiness in CI/local
+  const tcTimeout = 120000;
+  test.setTimeout(tcTimeout);
+
+  const home = new HomePage(page);
+  const cache = new EmailCache(page, tcTimeout);
+  
+  await home.navigate();
+  await home.decodeVin('4JGED6EB0JA121898', 3);
+  
+  await cache.Cacheemailbackfromcheckout();
+
+  console.log('✅ [TC_19] Email Cache flow completed');
   await page.close();
 });
