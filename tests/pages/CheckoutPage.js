@@ -66,7 +66,11 @@ class PayPalHandler {
     // Password field visible: proceed
     await passwordField.click({ force: true });
     await passwordField.fill(credentials.password);
-    await popup.getByRole('button', { name: 'Log In' }).click();
+    
+    // Robustly click 'Log In'
+    const loginButton = popup.getByRole('button', { name: /Log In/i });
+    await loginButton.waitFor({ state: 'visible', timeout: timeout / 2 });
+    await loginButton.click({ force: true });
     }
 
   async approvePayPalPayment(popup, timeout = TIMEOUT) {
