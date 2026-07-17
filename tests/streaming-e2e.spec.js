@@ -1,6 +1,6 @@
 // tests/streaming-e2e.spec.js
 const { test, expect } = require('@playwright/test');
-const { HomePage } = require('./pages/HomePage');
+const { HomePage, EUVinDecoder } = require('./pages/HomePage');
 const { PreviewPage } = require('./pages/PreviewPage');
 const { CheckoutPage } = require('./pages/CheckoutPage');
 const { ApiResponseCapture } = require('./helpers/responseCapture');
@@ -406,4 +406,31 @@ test('TC_15_Classic_Editible_Specs_Update', async ({ page }) => {
   } finally {
     await page.close();
   }
+});
+
+test('TC_16_PayPal_Successful_Payment', async ({ page, context }) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+  const checkout = new CheckoutPage(page);
+  
+  const paypalCredentials = {
+      email: process.env.PAYPAL_EMAIL,
+      password: process.env.PAYPAL_PASSWORD
+  };
+
+  await home.navigate();
+  await home.decodeVin('4JGED6EB0JA121898', 3);
+  await preview.runCheckoutFlow();
+
+  // Instant click on PayPal option
+  await checkout.paypal.selectPayPalOption();
+  
+  // Wait 4s before clicking "Pay with PayPal"
+  await page.waitForTimeout(4000);
+  const popup = await checkout.paypal.clickPayPalButton(context, TIMEOUT);
+  await checkout.paypal.loginPayPal(popup, paypalCredentials, TIMEOUT);
+  await checkout.paypal.approvePayPalPayment(popup, TIMEOUT);
+
+  await page.waitForURL(url => url.toString().includes('paid=true'), { timeout: 60000 });
+  console.log('✅ [TC_16] PayPal successful payment complete');
 });

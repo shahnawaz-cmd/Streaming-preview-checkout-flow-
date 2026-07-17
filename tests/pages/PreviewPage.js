@@ -9,6 +9,20 @@ class PreviewPage {
     this.accessRecordButton = page.locator('button:has-text("Access Record")').first();
   }
 
+  async handleEUSpecs(timeout = TIMEOUT) {
+    await this.page.getByRole('button', { name: 'No, fix it' }).click();
+    await this.page.waitForTimeout(17000);
+    await this.page.getByRole('textbox', { name: 'Select year' }).click();
+    await this.page.getByRole('button', { name: '2022' }).click();
+    await this.page.getByRole('textbox', { name: 'Select make' }).click();
+    await this.page.getByRole('button', { name: 'Acura' }).click();
+    await this.page.getByRole('textbox', { name: 'Select model' }).click();
+    await this.page.getByRole('button', { name: 'MDX' }).click();
+    await this.page.getByRole('textbox', { name: 'Select trim' }).click();
+    await this.page.getByRole('button', { name: 'V6 FWD - V6' }).click();
+    await this.page.getByRole('button', { name: 'Get Records' }).click();
+  }
+
   async confirmSpecs() {
     // Add logic here
   }

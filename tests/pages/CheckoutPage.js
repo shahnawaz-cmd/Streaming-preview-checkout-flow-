@@ -1,6 +1,114 @@
 // tests/pages/CheckoutPage.js
 const TIMEOUT = process.env.CI ? 90000 : 30000;
 
+class PayPalHandler {
+  constructor(page) {
+    this.page = page;
+  }
+
+  async delay(ms, page = this.page) {
+    await page.waitForTimeout(ms);
+  }
+
+  async selectPayPalOption() {
+    await this.page.getByRole('button', { name: 'PayPal' }).click();
+    await this.delay(2000);
+  }
+
+  async clickPayPalButton(context, timeout = TIMEOUT) {
+    const paypalIframe = this.page.frameLocator('iframe[name*="__zoid__paypal_buttons__"]').first();
+    const [popup] = await Promise.all([
+      context.waitForEvent('page', { timeout }),
+      paypalIframe.getByRole('link', { name: 'Pay with PayPal' }).click()
+    ]);
+    return popup;
+  }
+
+  async loginPayPal(popup, credentials, timeout = TIMEOUT) {
+    await popup.waitForLoadState('domcontentloaded');
+    
+    // Put email directly
+    await popup.getByRole('textbox', { name: 'Email or mobile number' }).fill(credentials.email);
+    
+    // Click next
+    await popup.getByRole('button', { name: 'Next' }).click();
+
+    // The password field should appear after clicking 'Next'.
+    // We need to wait for the page to navigate or for the password field to appear.
+    // Using a more robust locator approach for the password field.
+    
+    // 1. Wait for the password field to be visible in any frame
+    let passwordField;
+    const startTime = Date.now();
+    
+    while (!passwordField && (Date.now() - startTime < timeout)) {
+      for (const frame of popup.frames()) {
+        try {
+          const field = frame.getByRole('textbox', { name: 'Password' });
+          // Check if the field is present and visible
+          if (await field.count() > 0 && await field.isVisible()) {
+            passwordField = field;
+            break;
+          }
+        } catch (e) {
+          // Ignore detached frame errors during polling
+          continue;
+        }
+      }
+      if (!passwordField) {
+        await this.delay(1000, popup);
+      }
+    }
+    
+    if (!passwordField) {
+      throw new Error('Could not find password field in any frame after waiting.');
+    }
+    
+    // Password field visible: wait 3s
+    await this.delay(3000, popup);
+    
+    await passwordField.click();
+    await passwordField.fill(credentials.password);
+    await popup.getByRole('button', { name: 'Log In' }).click();
+  }
+
+  async approvePayPalPayment(popup, timeout = TIMEOUT) {
+    // Robust selector approach: Match "Submit" or "Complete" first for standard, fallback to "Agree/Subscribe/Continue"
+    const selector = 'button:has-text("Complete"), button:has-text("Submit"), button:has-text("Agree"), button:has-text("Subscribe"), button:has-text("Continue"), [data-test-id="continueButton"], #confirmButtonTop';
+    
+    let clicked = false;
+    const startTime = Date.now();
+
+    while (!clicked && (Date.now() - startTime < timeout)) {
+      const frames = popup.frames();
+      for (const f of frames) {
+        try {
+          // Attempt to find and click the specific 'Pay' button
+          const payButton = f.getByRole('button', { name: 'Pay', exact: true });
+          if (await payButton.isVisible()) {
+            await this.delay(2000, popup); // 2s delay before click
+            await payButton.click();
+            clicked = true;
+            break;
+          }
+
+          // Fallback to other selectors
+          const el = f.locator(selector).first();
+          if (el && await el.isVisible() && await el.isEnabled()) {
+            await el.scrollIntoViewIfNeeded();
+            await this.delay(1000, popup);
+            await el.click();
+            clicked = true;
+            break;
+          }
+        } catch (e) {}
+      }
+      if (!clicked) await this.delay(1000, popup);
+    }
+    if (!clicked) throw new Error(`PayPal Approval failed after ${timeout}ms.`);
+  }
+}
+
 class CheckoutPage {
   static TestCards = {
     visa_us: { 
@@ -39,6 +147,7 @@ class CheckoutPage {
 
   constructor(page) {
     this.page = page;
+    this.paypal = new PayPalHandler(page);
   }
 
   async applyCoupon(coupon) {
@@ -91,32 +200,50 @@ class CheckoutPage {
 
   async complete3DSChallenge() {
     const deadline = Date.now() + 60000;
+    console.log('🔄 Starting 3DS challenge completion (enhanced multi-strategy)...');
 
     while (Date.now() < deadline) {
       for (const frame of this.page.frames()) {
         try {
-          const authorizeButton = await frame.$('#test-source-authorize-3ds');
-          if (authorizeButton) {
-            await authorizeButton.click();
-            return;
+          const completeButton = frame.locator('#test-source-authorize-3ds').first();
+          const fallbackButton = frame.getByRole('button', { name: /Complete/i }).first();
+          
+          let targetLocator = null;
+          if (await completeButton.count() > 0 && await completeButton.isVisible()) {
+            targetLocator = completeButton;
+          } else if (await fallbackButton.count() > 0 && await fallbackButton.isVisible()) {
+            targetLocator = fallbackButton;
           }
 
-          const completeButton = await frame.$('button:has-text("Complete")');
-          if (completeButton) {
-            await completeButton.click();
+          if (targetLocator) {
+            console.log('✅ Found 3DS challenge button, attempting click and JS click backup...');
+            await frame.waitForTimeout(500); 
+            
+            // Try standard Playwright click with force: true
+            try {
+              await targetLocator.click({ force: true, timeout: 5000 });
+              console.log('✅ 3DS button clicked via Playwright click.');
+            } catch (clickErr) {
+              console.warn('⚠️ Playwright click failed, trying JS evaluation click...', clickErr.message);
+            }
+            
+            // Try JS click as backup
+            try {
+              await targetLocator.evaluate(el => el.click());
+              console.log('✅ 3DS button clicked via JS evaluation.');
+            } catch (evalErr) {
+              console.warn('⚠️ JS evaluation click failed:', evalErr.message);
+            }
+            
             return;
           }
         } catch (error) {
           // Keep polling until the challenge frame is ready or the page navigates.
         }
       }
-
       await this.page.waitForTimeout(1000);
     }
-  }
-
-  async payWithPayPal() {
-    // Logic for PayPal payment
+    throw new Error('3DS challenge timed out.');
   }
 
   async payWithPaystack() {

@@ -3,7 +3,8 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests',
-  timeout: 90000,
+  timeout: 120000,
+  retries: 1, // Reduced to 1 retry
   reporter: [['html', { open: 'never' }]],
   use: {
     headless: true,

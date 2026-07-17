@@ -51,4 +51,22 @@ class HomePage {
     await grabItNowButton.click();
   }
 }
-module.exports = { HomePage };
+class EUVinDecoder {
+  constructor() {
+    this.baseVins = [
+      'VF3YC2MFB12G20874',
+      'WBY1Z62030V719559',
+      'WV1ZZZSYZL9025249',
+      'SHHEU88701U002012',
+      'WAUZZZ8V5DA002440'
+    ];
+  }
+
+  generateEUVin() {
+    const baseVin = this.baseVins[Math.floor(Math.random() * this.baseVins.length)];
+    const randomDigit = Math.floor(Math.random() * 10).toString();
+    return baseVin.slice(0, -1) + randomDigit;
+  }
+}
+
+module.exports = { HomePage, EUVinDecoder };
