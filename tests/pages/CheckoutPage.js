@@ -64,7 +64,7 @@ class PayPalHandler {
     }
 
     // Password field visible: proceed
-    await passwordField.click();
+    await passwordField.click({ force: true });
     await passwordField.fill(credentials.password);
     await popup.getByRole('button', { name: 'Log In' }).click();
     }
