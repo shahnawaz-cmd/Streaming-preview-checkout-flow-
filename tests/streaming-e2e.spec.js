@@ -1,7 +1,8 @@
 // tests/streaming-e2e.spec.js
 const { test, expect } = require('@playwright/test');
 const { HomePage, EUVinDecoder } = require('./pages/HomePage');
-const { PreviewPage } = require('./pages/PreviewPage');
+const { PreviewPage, PreviewToCheckoutPriceValidator } = require('./pages/PreviewPage');
+const { EUVinModifier } = require('./pages/EUVinModifier');
 const { CheckoutPage } = require('./pages/CheckoutPage');
 const { ApiResponseCapture } = require('./helpers/responseCapture');
 
@@ -433,4 +434,41 @@ test('TC_16_PayPal_Successful_Payment', async ({ page, context }) => {
 
   await page.waitForURL(url => url.toString().includes('paid=true'), { timeout: 60000 });
   console.log('✅ [TC_16] PayPal successful payment complete');
+});
+
+test('TC_17_EU_VIN_Confirmation_No', async ({ page }) => {
+  const home = new HomePage(page);
+  const modifier = new EUVinModifier(page);
+  
+  await home.navigate();
+  // Using a sample EU VIN as implied by the requirement
+  await home.decodeVin('SHHEU88701U002018', 3);
+  
+  // Perform the EU modification flow
+  await modifier.modifyEUVinByYMMUsingNo();
+
+  // Add validation logic if needed
+  console.log('✅ [TC_17] EU VIN Confirmation (No) flow completed');
+  await page.close();
+});
+
+test('TC_18_Price_Consistency_Validation', async ({ page }) => {
+  const home = new HomePage(page);
+  const preview = new PreviewPage(page);
+  const validator = new PreviewToCheckoutPriceValidator(page);
+
+  await home.navigate();
+  await home.decodeVin('4JGED6EB0JA121898', 3);
+
+  // Select plan and handle upsell
+  const selectedPlan = await validator.selectRandomPlanAndHandleUpsell();
+
+  // Run checkout flow (handles email, phone, and navigation to checkout)
+  await preview.runCheckoutFlow();
+
+  // Navigate to checkout and validate order summary
+  await validator.validateOrderSummary(selectedPlan);
+
+  console.log('✅ [TC_18] Price consistency validation completed');
+  await page.close();
 });

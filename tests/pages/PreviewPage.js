@@ -200,4 +200,100 @@ class PreviewPage {
     return `(${areaCode}) ${prefix}-${lineNumber}`;
   }
 }
-module.exports = { PreviewPage };
+
+class PreviewToCheckoutPriceValidator {
+  constructor(page) {
+    this.page = page;
+  }
+
+  async selectRandomPlanAndHandleUpsell() {
+    // Select plan by name only, ignoring dynamic price/currency
+    const plans = [
+      { name: '1 Report', reports: 1, locator: this.page.locator('div[role="button"]').filter({ hasText: /^1 Report/ }) },
+      { name: '2 Reports', reports: 2, locator: this.page.locator('div[role="button"]').filter({ hasText: /^2 Reports/ }) },
+      { name: '5 Reports', reports: 5, locator: this.page.locator('div[role="button"]').filter({ hasText: /^5 Reports/ }) },
+      { name: 'Unlimited VIN Check', reports: 0, locator: this.page.locator('div[role="button"]').filter({ hasText: /^Unlimited VIN Check/ }) }
+    ];
+
+    const randomPlan = plans[Math.floor(Math.random() * plans.length)];
+    
+    // Capture price from the plan element itself dynamically
+    const priceText = await randomPlan.locator.innerText();
+    const priceMatch = priceText.match(/\$\d+(\.\d{2})?/);
+    const perReportPrice = priceMatch ? parseFloat(priceMatch[0].replace('$', '')) : 0;
+    
+    // Calculate total price: if reports > 0, multiply, else just take the base price
+    const totalPlanPrice = randomPlan.reports > 0 ? (perReportPrice * randomPlan.reports).toFixed(2) : perReportPrice.toFixed(2);
+    
+    await randomPlan.locator.click();
+    console.log(`✅ Selected plan: ${randomPlan.name}, Per-Report Price: $${perReportPrice}, Total Price: $${totalPlanPrice}`);
+
+    // Handle Upsell
+    let upsellPrice = null;
+    const upsellCheckbox = this.page.getByRole('checkbox', { name: /Save 50%! Get a window/ });
+    
+    if (randomPlan.name !== 'Unlimited VIN Check') {
+      const upsellContainer = upsellCheckbox.locator('xpath=..'); // Adjust if needed
+      const upsellText = await upsellContainer.innerText();
+      const upsellMatch = upsellText.match(/\$\d+(\.\d{2})?/);
+      upsellPrice = upsellMatch ? upsellMatch[0].replace('$', '') : null;
+      
+      await upsellCheckbox.check();
+      console.log(`✅ Upsell selected. Price: $${upsellPrice}`);
+    } else {
+      console.log('ℹ️ UVC plan selected: Upsell hidden.');
+    }
+
+    return { planName: randomPlan.name, totalPlanPrice, upsellPrice };
+  }
+
+  async validateOrderSummary(selectedData) {
+    // Navigate to checkout if not already there
+    if (!this.page.url().includes('/checkout')) {
+      const checkoutButton = this.page.getByRole('button', { name: /proceed to checkout/i });
+      await checkoutButton.waitFor({ state: 'visible', timeout: TIMEOUT });
+      await checkoutButton.click({ force: true });
+      await this.page.waitForURL(/.*\/checkout.*/);
+    }
+
+    // Locate Order Summary container
+    const orderSummary = this.page.locator('aside:has(h2:has-text("Order summary"))');
+
+    // Calculate expected total
+    const planPrice = parseFloat(selectedData.totalPlanPrice);
+    const upsellPrice = selectedData.upsellPrice ? parseFloat(selectedData.upsellPrice) : 0;
+    const expectedTotal = planPrice + upsellPrice;
+
+    // Validate Package
+    // Refined to target the specific grid item containing the package name
+    // Using a more robust locator for package name that ignores case
+    const packageItem = orderSummary.locator('div:has-text("Package") ~ div span').first();
+    // Use regex for case-insensitive match to handle 'Unmimited' vs 'Unlimited' issues if they persist
+    await expect(packageItem).toHaveText(new RegExp(selectedData.planName, 'i'));
+    
+    // Validate Total Price (specific selector from HTML)
+    const totalLocator = orderSummary.locator('span:has-text("Total") + div span');
+    await expect(totalLocator).toBeVisible();
+    
+    const totalText = await totalLocator.innerText();
+    const foundTotal = parseFloat(totalText.replace('$', ''));
+    
+    // Compare with tolerance
+    expect(Math.abs(foundTotal - expectedTotal), `Total price mismatch. Expected $${expectedTotal}, found $${foundTotal}`).toBeLessThan(0.05);
+    
+    console.log(`✅ Total price $${foundTotal} verified in Order summary.`);
+
+    // Validate Add-on (if applicable)
+    if (selectedData.planName !== 'Unlimited VIN Check' && selectedData.upsellPrice) {
+      // Specifically target the Add-on label to avoid strict mode violations
+      const addonLabel = orderSummary.locator('div.inline-flex:has-text("Add-on")');
+      await expect(addonLabel).toBeVisible();
+      console.log('✅ Add-on verified in Order summary.');
+    } else {
+      await expect(orderSummary.locator('div:has-text("Add-on")')).not.toBeVisible();
+      console.log('✅ No Add-on as expected for UVC.');
+    }
+  }
+}
+
+module.exports = { PreviewPage, PreviewToCheckoutPriceValidator };

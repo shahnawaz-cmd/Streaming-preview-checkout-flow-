@@ -72,4 +72,14 @@ class ApiResponseCapture {
   }
 }
 
-module.exports = { ApiResponseCapture };
+class EUVinCapture extends ApiResponseCapture {
+  async waitForVinCheckPreview() {
+    const response = await this.page.waitForResponse(
+      (response) => response.url().includes('vin-check/preview'),
+      { timeout: this.timeout }
+    );
+    return await this.captureResponse(response);
+  }
+}
+
+module.exports = { ApiResponseCapture, EUVinCapture };
