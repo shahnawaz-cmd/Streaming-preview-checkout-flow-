@@ -37,40 +37,37 @@ class PayPalHandler {
     // We need to wait for the page to navigate or for the password field to appear.
     // Using a more robust locator approach for the password field.
     
-    // 1. Wait for the password field to be visible in any frame
+    // 1. Use a more robust selector strategy that isn't just dependent on the label.
+    // Try multiple possible locators and wait for visibility.
+    const passwordLocators = [
+      popup.getByRole('textbox', { name: 'Password' }),
+      popup.locator('input[type="password"]'),
+      popup.locator('#password')
+    ];
+
     let passwordField;
-    const startTime = Date.now();
-    
-    while (!passwordField && (Date.now() - startTime < timeout)) {
-      for (const frame of popup.frames()) {
-        try {
-          const field = frame.getByRole('textbox', { name: 'Password' });
-          // Check if the field is present and visible
-          if (await field.count() > 0 && await field.isVisible()) {
-            passwordField = field;
-            break;
-          }
-        } catch (e) {
-          // Ignore detached frame errors during polling
-          continue;
-        }
-      }
-      if (!passwordField) {
-        await this.delay(1000, popup);
+
+    // Wait for at least one of these to be visible within the timeout
+    for (const locator of passwordLocators) {
+      try {
+        await locator.waitFor({ state: 'visible', timeout: timeout / 2 });
+        passwordField = locator;
+        break;
+      } catch (e) {
+        // Try next locator
+        continue;
       }
     }
-    
+
     if (!passwordField) {
-      throw new Error('Could not find password field in any frame after waiting.');
+      throw new Error('Could not find password field using any strategy after waiting.');
     }
-    
-    // Password field visible: wait 3s
-    await this.delay(3000, popup);
-    
+
+    // Password field visible: proceed
     await passwordField.click();
     await passwordField.fill(credentials.password);
     await popup.getByRole('button', { name: 'Log In' }).click();
-  }
+    }
 
   async approvePayPalPayment(popup, timeout = TIMEOUT) {
     // Robust selector approach: Match "Submit" or "Complete" first for standard, fallback to "Agree/Subscribe/Continue"
