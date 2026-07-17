@@ -382,4 +382,53 @@ class DefaultPlanCheckingHandler {
   }
 }
 
-module.exports = { PreviewPage, PreviewToCheckoutPriceValidator, EmailCache, DefaultPlanCheckingHandler };
+
+class UpsellTextMatched {
+  constructor(page) {
+    this.page = page;
+  }
+
+  async upsellTextVerify(pageType = 'vhr', timeout = TIMEOUT) {
+    // Wait for localStorage to be populated
+    const siteSettingsStr = await this.page.evaluate(async () => {
+        for (let i = 0; i < 20; i++) {
+            const val = localStorage.getItem('site_settings');
+            if (val) return val;
+            await new Promise(r => setTimeout(r, 500));
+        }
+        return null;
+    });
+
+    if (!siteSettingsStr) throw new Error('site_settings not found in localStorage');
+    const siteSettings = JSON.parse(siteSettingsStr);
+
+    let textKey, priceKey;
+    if (pageType === 'sticker') {
+      textKey = 'report_preview_page_checkbox_text';
+      priceKey = 'report_preview_page_checkbox_price';
+    } else {
+      textKey = 'sticker_preview_page_checkbox_text';
+      priceKey = 'sticker_preview_page_checkbox_price';
+    }
+
+    const expectedText = siteSettings[textKey];
+    const expectedPrice = siteSettings[priceKey];
+
+    if (!expectedText || !expectedPrice) {
+      throw new Error(`Required settings ${textKey} or ${priceKey} missing in site_settings`);
+    }
+
+    console.log(`✅ Validating Upsell for ${pageType}: Text='${expectedText}', Price='${expectedPrice}'`);
+
+    // Match based on text and price
+    const upsellLocator = this.page.locator('label:has(input[type="checkbox"])').filter({ 
+        hasText: new RegExp(`${expectedText}.*${expectedPrice}`, 'i') 
+    });
+
+    await upsellLocator.waitFor({ state: 'visible', timeout });
+    await expect(upsellLocator).toBeVisible();
+    console.log('✅ Upsell text and price matched on UI.');
+  }
+}
+
+module.exports = { PreviewPage, PreviewToCheckoutPriceValidator, EmailCache, DefaultPlanCheckingHandler, UpsellTextMatched };
