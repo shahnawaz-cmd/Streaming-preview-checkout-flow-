@@ -489,3 +489,38 @@ test('TC_19_Email_Cache_Flow', async ({ page }) => {
   console.log('✅ [TC_19] Email Cache flow completed');
   await page.close();
 });
+
+test('TC_20_Default_Plan_Checking', async ({ page }) => {
+  // Condition-based timeout
+  const tcTimeout = process.env.CI ? 120000 : 60000;
+  test.setTimeout(tcTimeout);
+
+  const home = new HomePage(page);
+  const { DefaultPlanCheckingHandler } = require('./pages/PreviewPage');
+  const handler = new DefaultPlanCheckingHandler(page);
+  
+  await handler.sitesettingDefaultPlansVerifies(home);
+
+  console.log('✅ [TC_20] Default plan checking completed');
+  await page.close();
+});
+
+test('TC_21_Window_Sticker_Default_Plan', async ({ page }) => {
+  // Condition-based timeout
+  const tcTimeout = process.env.CI ? 120000 : 60000;
+  test.setTimeout(tcTimeout);
+
+  const home = new HomePage(page);
+  const { DefaultPlanCheckingHandler } = require('./pages/PreviewPage');
+  const handler = new DefaultPlanCheckingHandler(page);
+
+  // Navigate to window-sticker instead of default home
+  await page.goto('/window-sticker');
+  await home.decodeVin('4JGED6EB0JA121264');
+  
+  // Reuse handler method, skip default home navigation, verify WS plan
+  await handler.sitesettingDefaultPlansVerifies(home, '4JGED6EB0JA121264', true, 'ws');
+
+  console.log('✅ [TC_21] Window sticker default plan checking completed');
+  await page.close();
+});

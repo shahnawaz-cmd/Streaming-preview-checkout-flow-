@@ -338,4 +338,48 @@ class EmailCache {
   }
 }
 
-module.exports = { PreviewPage, PreviewToCheckoutPriceValidator, EmailCache };
+class DefaultPlanCheckingHandler {
+  constructor(page) {
+    this.page = page;
+  }
+
+  async sitesettingDefaultPlansVerifies(homeInstance, vin = '223870L108421', skipNavigation = false, planType = 'default') {
+    if (!skipNavigation) {
+      await homeInstance.navigate();
+      await homeInstance.decodeVin(vin);
+      await this.page.waitForURL(/.*\/preview.*/, { timeout: TIMEOUT });
+    }
+
+    // Wait for localStorage to be populated
+    const siteSettings = await this.page.evaluate(async () => {
+        for (let i = 0; i < 20; i++) {
+            const val = localStorage.getItem('site_settings');
+            if (val) return val;
+            await new Promise(r => setTimeout(r, 500));
+        }
+        return null;
+    });
+
+    if (!siteSettings) throw new Error('site_settings not found in localStorage');
+
+    const parsedSettings = JSON.parse(siteSettings);
+    const targetPlanKey = planType === 'ws' ? 'default_ws_plan' : 'default_plan';
+    const planData = parsedSettings[targetPlanKey];
+    
+    if (!planData) throw new Error(`${targetPlanKey} not found in site_settings`);
+    
+    console.log(`✅ Verified site_settings (${targetPlanKey}):`, planData);
+
+    // Matching plan on UI - escape special characters in currency sign
+    const escapedCurrency = planData.currency_sign.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const planLocator = this.page.locator('div[role="button"]').filter({ 
+        hasText: new RegExp(`${escapedCurrency}\\s*${planData.price}`) 
+    }).first();
+    
+    await planLocator.waitFor({ state: 'visible', timeout: TIMEOUT });
+    await planLocator.click();
+    console.log(`✅ Matched and clicked plan: ${planData.price} ${planData.currency_sign}`);
+  }
+}
+
+module.exports = { PreviewPage, PreviewToCheckoutPriceValidator, EmailCache, DefaultPlanCheckingHandler };
