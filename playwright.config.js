@@ -6,7 +6,8 @@ module.exports = defineConfig({
   timeout: 120000,
   retries: 1, // Reduced to 1 retry
   reporter: [['html', { open: 'never' }]],
-  workers: 2,
+  fullyParallel: true,
+  workers: 1,
   use: {
     headless: true,
     baseURL: process.env.BASE_URL,

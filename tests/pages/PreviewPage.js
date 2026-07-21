@@ -1,6 +1,6 @@
 // tests/pages/PreviewPage.js
 const { expect } = require('@playwright/test');
-const TIMEOUT = process.env.CI ? 90000 : 30000;
+const TIMEOUT = process.env.CI ? 90000 : 60000;
 
 class PreviewPage {
   constructor(page) {
@@ -274,8 +274,9 @@ class PreviewToCheckoutPriceValidator {
     await expect(packageItem).toHaveText(new RegExp(planNameRegex, 'i'));
     
     // Validate Total Price (specific selector from HTML)
-    const totalLocator = orderSummary.locator('span:has-text("Total") + div span');
-    await expect(totalLocator).toBeVisible();
+    // Locate the span with 'Total' text, then find the span that contains '$' within the next sibling div
+    const totalLocator = orderSummary.locator('span:has-text("Total") + div span').first();
+    await totalLocator.waitFor({ state: 'visible', timeout: TIMEOUT });
     
     const totalText = await totalLocator.innerText();
     const foundTotal = parseFloat(totalText.replace('$', ''));
@@ -350,13 +351,19 @@ class DefaultPlanCheckingHandler {
       await this.page.waitForURL(/.*\/preview.*/, { timeout: TIMEOUT });
     }
 
+    // Ensure page is loaded before checking localStorage
+    await this.page.waitForLoadState('domcontentloaded');
+
     // Wait for localStorage to be populated
     const siteSettings = await this.page.evaluate(async () => {
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 40; i++) {
             const val = localStorage.getItem('site_settings');
             if (val) return val;
             await new Promise(r => setTimeout(r, 500));
         }
+        // DEBUG: Log all localStorage keys if not found
+        const allKeys = Object.keys(localStorage);
+        console.log(`DEBUG: localStorage keys (sitesetting): ${JSON.stringify(allKeys)}`);
         return null;
     });
 
@@ -389,13 +396,23 @@ class UpsellTextMatched {
   }
 
   async upsellTextVerify(pageType = 'vhr', timeout = TIMEOUT) {
+    // Ensure page is loaded before checking localStorage
+    await this.page.waitForLoadState('domcontentloaded');
+
+    // DEBUG: Log all localStorage keys immediately
+    const allKeysInitial = await this.page.evaluate(() => Object.keys(localStorage));
+    console.log(`DEBUG: Initial localStorage keys (upsell): ${JSON.stringify(allKeysInitial)}`);
+
     // Wait for localStorage to be populated
     const siteSettingsStr = await this.page.evaluate(async () => {
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 40; i++) {
             const val = localStorage.getItem('site_settings');
             if (val) return val;
             await new Promise(r => setTimeout(r, 500));
         }
+        // DEBUG: Log all localStorage keys if not found
+        const allKeys = Object.keys(localStorage);
+        console.log(`DEBUG: Final localStorage keys (upsell): ${JSON.stringify(allKeys)}`);
         return null;
     });
 

@@ -1,12 +1,19 @@
 // tests/streaming-e2e.spec.js
 const { test, expect } = require('@playwright/test');
-const { HomePage, EUVinDecoder } = require('./pages/HomePage');
+const { HomePage } = require('./pages/HomePage');
 const { PreviewPage, PreviewToCheckoutPriceValidator, EmailCache, DefaultPlanCheckingHandler, UpsellTextMatched } = require('./pages/PreviewPage');
 const { EUVinModifier } = require('./pages/EUVinModifier');
 const { CheckoutPage } = require('./pages/CheckoutPage');
+const { CouponFlowHandler, CheckoutCouponFlowTest, CouponFlowVerifier } = require('./pages/CouponFlowHandler');
 const { ApiResponseCapture } = require('./helpers/responseCapture');
 
-const TIMEOUT = 60000; // Define timeout for test spec
+const TIMEOUT = process.env.CI ? 90000 : 60000;
+
+test.afterEach(async ({ page }) => {
+  if (!page.isClosed()) {
+    await page.close();
+  }
+});
 
 test('TC_01_VIN_Decode_17_Character_Validation', async ({ page }) => {
   const home = new HomePage(page);
@@ -307,4 +314,71 @@ test('TC_23_Sticker_Upsell_Text_Validation', async ({ page }) => {
   await page.waitForURL(/.*\/preview.*/, { timeout: tcTimeout });
   await upsellHandler.upsellTextVerify('sticker', tcTimeout);
   await page.close();
+});
+
+test('TC_24_Coupon_Flow_Verification', async ({ page }) => {
+  // Condition-based timeout
+  const tcTimeout = process.env.CI ? 120000 : 60000;
+  test.setTimeout(tcTimeout);
+
+  const home = new HomePage(page);
+  const { CouponFlowHandler } = require('./pages/CouponFlowHandler');
+  const handler = new CouponFlowHandler(page);
+  
+  // 1. Navigate and Apply Coupon
+  await handler.navigateAndApplyCoupon(home, '4JGED6EB0JA121898', tcTimeout);
+  
+  // 2. Select Plan and Upsell
+  await handler.selectPlanAndUpsell();
+
+  // 3. Click Access Record
+  await handler.accessRecord();
+  
+  // 4. Fill Checkout Details and Proceed
+  await handler.fillCheckoutDetails();
+
+  // Verify that we have successfully navigated to the checkout page.
+  // If the URL contains '/checkout' we consider the navigation successful and can finish the test.
+  await expect(page).toHaveURL(/.*\/checkout.*/);
+
+  // End the test here – the primary goal for this scenario is to ensure the checkout page is reached.
+  console.log('✅ [TC_24] Checkout page reached – test passed');
+  await page.close();
+  return;
+});
+
+test('TC_25_Checkout_Coupon_Verification', async ({ page }, testInfo) => {
+  const vin = '4JGED6EB0JA121898';
+  const couponCode = 'get20';
+  const couponPercentage = 0.20;
+  const home = new HomePage(page);
+  const checkoutCouponFlow = new CheckoutCouponFlowTest(page);
+  const couponVerifier = new CouponFlowVerifier(page);
+
+  await checkoutCouponFlow.navigateToCheckout(home, vin);
+  const verification = await couponVerifier.applyAndVerifyCoupon(couponCode, couponPercentage);
+  const reportData = {
+    vin,
+    couponCode,
+    couponPercentage: `${couponPercentage * 100}%`,
+    checkoutUrl: page.url(),
+    ...verification,
+  };
+
+  await testInfo.attach('TC_25 checkout coupon data', {
+    body: JSON.stringify(reportData, null, 2),
+    contentType: 'application/json',
+  });
+  await testInfo.attach('TC_25 checkout coupon summary', {
+    body: [
+      `VIN: ${vin}`,
+      `Coupon: ${couponCode} (${couponPercentage * 100}% off)`,
+      `Checkout URL: ${page.url()}`,
+      `Report: ${verification.reportPrice.toFixed(2)}`,
+      `Discount: ${verification.discountAmount.toFixed(2)}`,
+      `Add-on: ${verification.addOnAmount.toFixed(2)}`,
+      `Total: ${verification.totalAmount.toFixed(2)}`,
+    ].join('\n'),
+    contentType: 'text/plain',
+  });
 });

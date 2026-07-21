@@ -4,7 +4,10 @@
   "description": "E2E testing for streaming flow",
   "main": "index.js",
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:headed:batch:1": "playwright test --headed --workers=1 --grep \"TC_(01|02|04|05|06|07|08|09|10|11)_\"",
+    "test:headed:batch:2": "playwright test --headed --workers=1 --grep \"TC_(12|13|14|15|16|17|18|19|20|21)_\"",
+    "test:headed:batch:3": "playwright test --headed --workers=1 --grep \"TC_(22|23|24|25)_\""
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0"
