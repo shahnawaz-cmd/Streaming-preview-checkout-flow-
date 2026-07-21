@@ -19,21 +19,21 @@ jobs:
       run: npx playwright install --with-deps
     - name: Run Playwright tests - Batch 1
       continue-on-error: true
-      run: npx playwright test --workers=1 --grep "TC_(01|02|04|05|06|07|08|09|10|11)_"
+      run: npx playwright test --workers=1 --output=playwright-report/batch1 --grep "TC_(01|02|04|05|06|07|08|09|10|11)_"
       env:
         BASE_URL: ${{ secrets.BASE_URL || 'https://dvh.vehiclehistory.report/' }}
         PAYPAL_EMAIL: ${{ secrets.PAYPAL_EMAIL }}
         PAYPAL_PASSWORD: ${{ secrets.PAYPAL_PASSWORD }}
     - name: Run Playwright tests - Batch 2
       continue-on-error: true
-      run: npx playwright test --workers=1 --grep "TC_(12|13|14|15|16|17|18|19|20|21)_"
+      run: npx playwright test --workers=1 --output=playwright-report/batch2 --grep "TC_(12|13|14|15|16|17|18|19|20|21)_"
       env:
         BASE_URL: ${{ secrets.BASE_URL || 'https://dvh.vehiclehistory.report/' }}
         PAYPAL_EMAIL: ${{ secrets.PAYPAL_EMAIL }}
         PAYPAL_PASSWORD: ${{ secrets.PAYPAL_PASSWORD }}
     - name: Run Playwright tests - Batch 3
       continue-on-error: true
-      run: npx playwright test --workers=1 --grep "TC_(22|23|24|25)_"
+      run: npx playwright test --workers=1 --output=playwright-report/batch3 --grep "TC_(22|23|24|25)_"
       env:
         BASE_URL: ${{ secrets.BASE_URL || 'https://dvh.vehiclehistory.report/' }}
         PAYPAL_EMAIL: ${{ secrets.PAYPAL_EMAIL }}
